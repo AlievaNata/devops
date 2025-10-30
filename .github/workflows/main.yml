@@ -3,6 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -11,19 +12,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      # Используем установленный Python 3.11 напрямую
+      - name: Verify Python version
+        run: python3.11 --version
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python3.11 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
           pip install -r requirements.txt || true
           pip install flake8 pytest || true
 
       - name: Run lint and tests (non-blocking)
         run: |
+          source venv/bin/activate
           flake8 . || true
           pytest || true
         if: always()

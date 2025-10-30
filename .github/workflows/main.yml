@@ -79,4 +79,3 @@ jobs:
           docker rm fastapi_demo || true
           docker run -d --name fastapi_demo -p 8081:8000 ${IMAGE}
           EOF
-

@@ -12,7 +12,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Используем установленный Python 3.11 напрямую
       - name: Verify Python version
         run: python3.11 --version
 
@@ -55,21 +54,35 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_demo:latest
 
   deploy-to-vm:
-    runs-on: ubuntu-latest
+    # если есть self-hosted runner → деплой локально
+    runs-on: ${{ github.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     needs: docker-build-push
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Deploy (self-hosted)
+        if: runner.environment == 'self-hosted'
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_demo:latest
+        run: |
+          docker pull ${IMAGE}
+          docker stop fastapi_demo || true
+          docker rm fastapi_demo || true
+          docker run -d --name fastapi_demo -p 8081:8000 ${IMAGE}
+
+      - name: Setup SSH (cloud runner)
+        if: runner.environment != 'self-hosted'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Add VM to known hosts
+      - name: Add VM to known hosts (cloud runner)
+        if: runner.environment != 'self-hosted'
         run: ssh-keyscan -H ${{ secrets.DEPLOY_VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to VM
+      - name: Deploy via SSH (cloud runner)
+        if: runner.environment != 'self-hosted'
         env:
           SSH_USER: ${{ secrets.DEPLOY_VM_USER }}
           SSH_HOST: ${{ secrets.DEPLOY_VM_HOST }}
